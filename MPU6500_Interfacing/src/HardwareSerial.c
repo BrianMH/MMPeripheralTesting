@@ -131,8 +131,10 @@ bool HUSART_writeInt(USART_TypeDef* usart, int twrite) {
    char buf[11] = {0};
 
    // check if char is negative
-   if(twrite < 0)
+   if(twrite < 0) {
       neg = true;
+      twrite *= -1;
+   }
 
    // Perform a simple conversion
    for(; ind < 10; ind++) {
@@ -159,7 +161,6 @@ bool HUSART_writeInt(USART_TypeDef* usart, int twrite) {
    USART_ITConfig(usart, USART_IT_TXE, ENABLE);
    return true;
 }
-
 
 bool HUSART_available(USART_TypeDef* usart) {
    RingBuffer* rxbuf = _HUSART_RET_BUF(usart, __RX);

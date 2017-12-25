@@ -42,24 +42,24 @@ typedef enum {
 	SPI_LAST
 } SPITransferMode;
 
-// (Experimental) Timer methods
-volatile uint32_t multiplier;
+// Timer methods
+volatile uint32_t __multiplier;
 
 void TIM_Delay_Init() {
 	RCC_ClocksTypeDef RCC_Clocks;
 
 	// Use internal clock to scale delays
 	RCC_GetClocksFreq(&RCC_Clocks);
-	multiplier = RCC_Clocks.HCLK_Frequency / 4000000;
+	__multiplier = RCC_Clocks.HCLK_Frequency / 4000000;
 }
 
 void TIM_Delay_Micro(uint32_t msecs) {
-	uint32_t millis = 1000*msecs*multiplier - 10;
+	uint32_t millis = 1000*msecs*__multiplier - 10;
 	while(millis--) {}; // delay happens here
 }
 
 // Some helper methods to use for MPU6500
-void MPU6500_WriteToReg(uint8_t address, uint8_t data, SPITransferMode t_mode) {
+void MPU6500_WriteToReg(uint8_t address, uint8_t data) {
 	 GPIO_ResetBits(GPIOB, _CS_PIN);
 
 	while(!SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_TXE));	// wait until tx buffer empty
@@ -72,11 +72,10 @@ void MPU6500_WriteToReg(uint8_t address, uint8_t data, SPITransferMode t_mode) {
 	while(!SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_RXNE));
 	SPI_I2S_ReceiveData(SPI2);
 
-	if(t_mode == SPI_LAST)
-		GPIO_SetBits(GPIOB, _CS_PIN);
+	GPIO_SetBits(GPIOB, _CS_PIN);
 }
 
-uint8_t MPU6500_ReadFromReg(uint8_t address, SPITransferMode t_mode) {
+uint8_t MPU6500_ReadFromReg(uint8_t address) {
 	GPIO_ResetBits(GPIOB, _CS_PIN);
 
 	while(!SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_TXE));
@@ -88,16 +87,50 @@ uint8_t MPU6500_ReadFromReg(uint8_t address, SPITransferMode t_mode) {
 	SPI_I2S_SendData(SPI2, 0x00); //Dummy byte to generate clock
 	while(!SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_RXNE));
 
+	GPIO_SetBits(GPIOB, _CS_PIN);
+	return SPI_I2S_ReceiveData(SPI2);
+}
+
+// So called "half operation" for usage in burst reading
+uint8_t MPU6500_Transfer(uint8_t data, SPITransferMode t_mode) {
+	GPIO_ResetBits(GPIOB, _CS_PIN);
+
+	while(!SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_TXE));
+	SPI_I2S_SendData(SPI2, data);
+	while(!SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_RXNE));
+
 	if(t_mode == SPI_LAST)
 		GPIO_SetBits(GPIOB, _CS_PIN);
 
 	return SPI_I2S_ReceiveData(SPI2);
 }
 
-// Updates the global variable MPU6500 that holds the values for the struct
-// Uses the burst read feature to grab the values
+// TODO: Burst read is EXTREMELY prone to read mistakes. It needs a lot more investigation before using.
 void MPU6500_GetAccGyro_Values() {
+//	uint8_t bytes[12] = {0};
+//
+//	//read in bytes
+//	MPU6500_Transfer(0x80|MPU6500_RA_FIFO_R_W, SPI_CONTINUE);
+//	for(uint8_t i=0; i<12-1; i++) {
+//		bytes[i] = MPU6500_Transfer(0x00, SPI_CONTINUE); // send dummy bytes for reading
+//	}
+//	bytes[12-1] = MPU6500_Transfer(0x00, SPI_LAST);
+//
+//	// now assign them to the value struct
+//	MPU6500.acc_x = (int16_t)((bytes[0]<<8)+bytes[1]);
+//	MPU6500.acc_y = (int16_t)((bytes[2]<<8)+bytes[3]);
+//	MPU6500.acc_z = (int16_t)((bytes[4]<<8)+bytes[5]);
+//	MPU6500.gyro_x = (int16_t)((bytes[6]<<8)+bytes[7]);
+//	MPU6500.gyro_y = (int16_t)((bytes[8]<<8)+bytes[9]);
+//	MPU6500.gyro_z = (int16_t)((bytes[10]<<8)+bytes[11]);
 
+	// read in bytes manually through registers
+	MPU6500.acc_x = (int16_t)((MPU6500_ReadFromReg(MPU6500_RA_ACCEL_XOUT_H)<<8)+MPU6500_ReadFromReg(MPU6500_RA_ACCEL_XOUT_L));
+	MPU6500.acc_y = (int16_t)((MPU6500_ReadFromReg(MPU6500_RA_ACCEL_YOUT_H)<<8)+MPU6500_ReadFromReg(MPU6500_RA_ACCEL_XOUT_L));
+	MPU6500.acc_z = (int16_t)((MPU6500_ReadFromReg(MPU6500_RA_ACCEL_ZOUT_H)<<8)+MPU6500_ReadFromReg(MPU6500_RA_ACCEL_XOUT_L));
+	MPU6500.gyro_x = (int16_t)((MPU6500_ReadFromReg(MPU6500_RA_GYRO_XOUT_H)<<8)+MPU6500_ReadFromReg(MPU6500_RA_GYRO_XOUT_L));
+	MPU6500.gyro_y = (int16_t)((MPU6500_ReadFromReg(MPU6500_RA_GYRO_YOUT_H)<<8)+MPU6500_ReadFromReg(MPU6500_RA_GYRO_XOUT_L));
+	MPU6500.gyro_z = (int16_t)((MPU6500_ReadFromReg(MPU6500_RA_GYRO_ZOUT_H))+MPU6500_ReadFromReg(MPU6500_RA_GYRO_XOUT_L));
 }
 
 void MPU6500_Init() {
@@ -132,7 +165,7 @@ void MPU6500_Init() {
 	SPI_InitTypeDefStruct.SPI_CPOL = SPI_CPOL_Low;   // data latched on rising edge
 	SPI_InitTypeDefStruct.SPI_CPHA = SPI_CPHA_1Edge;   // data transitioned on falling edge
 	SPI_InitTypeDefStruct.SPI_NSS = SPI_NSS_Soft | SPI_NSSInternalSoft_Set;
-	SPI_InitTypeDefStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_64;   // maximum SCLK of 1MHz
+	SPI_InitTypeDefStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_32;   // maximum SCLK of 1MHz
 	SPI_InitTypeDefStruct.SPI_FirstBit = SPI_FirstBit_MSB;  // Data is delivered on MSB first
 	SPI_InitTypeDefStruct.SPI_CRCPolynomial = 0;   // unused since no CRC available
 	SPI_Init(SPI2, &SPI_InitTypeDefStruct);
@@ -143,18 +176,18 @@ void MPU6500_Init() {
 
 	/** The following reset procedure is defined on p. 42 of the MPU6500 register map**/
 	// Reset device
-	MPU6500_WriteToReg(MPU6500_RA_PWR_MGMT_1, 0x80, SPI_LAST);
+	MPU6500_WriteToReg(MPU6500_RA_PWR_MGMT_1, 0x80);
 	TIM_Delay_Micro(100);
 	// Reset sensors
-	MPU6500_WriteToReg(MPU6500_RA_SIGNAL_PATH_RESET, 0x05, SPI_LAST);
+	MPU6500_WriteToReg(MPU6500_RA_SIGNAL_PATH_RESET, 0x05);
 	TIM_Delay_Micro(100);
 	// Finally set SPI mode permanently and reset other components
-	MPU6500_WriteToReg(MPU6500_RA_USER_CTRL, 0x10|0x08|0x04|0x01, SPI_LAST);
+	MPU6500_WriteToReg(MPU6500_RA_USER_CTRL, 0x10|0x08|0x04|0x01);
 	TIM_Delay_Micro(1000);
 
 #ifdef DEBUG_ON
 	// Tiny self-reassurance using WHO_AM_I register
-	uint8_t id = MPU6500_ReadFromReg(MPU6500_RA_WHO_AM_I, SPI_LAST);
+	uint8_t id = MPU6500_ReadFromReg(MPU6500_RA_WHO_AM_I);
 	HUSART_writeInt(USART2, id);	// should be 112
 	HUSART_writeString(USART2, "\tend\n");
 #endif
@@ -162,11 +195,11 @@ void MPU6500_Init() {
 	// Now configure various settings for sensors (see register map)
 	// By default, accelerometer has 1kHz sampling rate w/ 460 Hz bandwidth
 	// By default, gyroscope has 250 Hz bandwidth w/ 4kHz sampling rate (+250 dps)
-	MPU6500_WriteToReg(MPU6500_RA_CONFIG, 0x01, SPI_LAST); // set gyro to 184hz bandwidth
-	MPU6500_WriteToReg(MPU6500_RA_FIFO_EN, MPU6500_FIFO_EN_ACC | MPU6500_FIFO_EN_GYRO, SPI_LAST); // enable accelerometer and gyro FIFO
+	MPU6500_WriteToReg(MPU6500_RA_CONFIG, 0x01); // set gyro to 184hz bandwidth
+	MPU6500_WriteToReg(MPU6500_RA_FIFO_EN, MPU6500_FIFO_EN_ACC | MPU6500_FIFO_EN_GYRO); // enable accelerometer and gyro FIFO
 
 	// Finally, enable FIFO buffer and disable I2C switching
-	MPU6500_WriteToReg(MPU6500_RA_USER_CTRL, 0x40|0x10, SPI_LAST);
+	MPU6500_WriteToReg(MPU6500_RA_USER_CTRL, 0x40|0x10);
 }
 
 int main(void)
@@ -177,6 +210,22 @@ int main(void)
 
 	// perma loop
 	for(;;) {
-		;
+		HUSART_writeString(USART2, "acc_x :");
+		HUSART_writeInt(USART2, MPU6500.acc_x);
+		HUSART_writeString(USART2, "\t\tacc_y :");
+		HUSART_writeInt(USART2, MPU6500.acc_y);
+		HUSART_writeString(USART2, "\t\tacc_z :");
+		HUSART_writeInt(USART2, MPU6500.acc_z);
+		HUSART_writeString(USART2, "\t\tgyro_x:");
+		HUSART_writeInt(USART2, MPU6500.gyro_x);
+		HUSART_writeString(USART2, "\t\tgyro_y:");
+		HUSART_writeInt(USART2, MPU6500.gyro_y);
+		HUSART_writeString(USART2, "\t\tgyro_z:");
+		HUSART_writeInt(USART2, MPU6500.gyro_z);
+		HUSART_writeString(USART2, "\n");
+
+		// get new values
+		MPU6500_GetAccGyro_Values();
+		TIM_Delay_Micro(100);
 	}
 }
