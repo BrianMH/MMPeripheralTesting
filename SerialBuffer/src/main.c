@@ -19,6 +19,7 @@ int main(void)
    HUSART_writeChar(USART2, '-');
    HUSART_writeString(USART2, "Testing the Serial interface!\n");
    HUSART_writeInt(USART2, 1234);
+   HUSART_writeFloat(USART2, -10.532);
 
 	while(1) {
 //	   static char c = '\0';

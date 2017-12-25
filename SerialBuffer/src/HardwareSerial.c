@@ -162,6 +162,74 @@ bool HUSART_writeInt(USART_TypeDef* usart, int twrite) {
    return true;
 }
 
+int ipow(int base, int exp)
+{
+    int result = 1;
+    while (exp)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        base *= base;
+    }
+
+    return result;
+}
+
+bool HUSART_writeFloat(USART_TypeDef* usart, double twrite) {
+	   RingBuffer* txbuf = _HUSART_RET_BUF(usart, __TX);
+	   bool neg = false;
+	   int8_t ind = __PRECISION+1;
+
+	   // Find mantissa portion
+	   int nonman = (int)twrite;
+	   int mantissa = (int)((twrite - nonman)*ipow(10, __PRECISION));
+
+	   // Do int conversion
+	   char buf[11+__PRECISION+1] = {0};
+	   buf[__PRECISION] = '.';
+
+	   // check if char is negative
+	   if(nonman < 0) {
+	      neg = true;
+	      nonman *= -1;
+	      mantissa *= -1;
+	   }
+
+	   // Perform a simple conversion of main number
+	   for(; ind < 10+__PRECISION; ind++) {
+	      buf[ind] = (char)( 48 + (nonman % 10));
+	      nonman /= 10;
+	      if(nonman == 0)
+	         break;   // if nonman is now zero, number conversion is done
+	   }
+
+	   // Now add decimal and convert mantissa to certain position
+	   for(int ind2 = 0; ind2 < __PRECISION; ind2++) {
+		  buf[ind2] = (char)( 48 + (mantissa % 10));
+		  mantissa /= 10;
+		  if(mantissa == 0) {
+			  if(neg)
+				  buf[++ind] = '-';
+			  break;   // if mantissa is now zero, number conversion is done
+		  }
+	   }
+
+	   // now perform the transfer
+	   while(ind >= 0) {
+	      // buffer is full. transmission failed
+	      if(RingBuffer_isFull(txbuf))
+	         return false;
+
+	      // attempt transmission
+	      RingBuffer_queue(txbuf, (uint8_t)buf[ind]);
+	      ind--;
+	   }
+
+	   USART_ITConfig(usart, USART_IT_TXE, ENABLE);
+	   return true;
+}
+
 
 bool HUSART_available(USART_TypeDef* usart) {
    RingBuffer* rxbuf = _HUSART_RET_BUF(usart, __RX);

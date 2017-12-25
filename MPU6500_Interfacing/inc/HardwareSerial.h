@@ -11,6 +11,7 @@ RingBuffer tx2Buf;
 
 // Defines
 typedef enum { __RX = 0, __TX = 1 } RTX_Type;
+#define __PRECISION 2
 
 #ifndef _BOOL
 #define _BOOL
@@ -66,10 +67,19 @@ bool HUSART_writeString(USART_TypeDef* usart, char* twrite);
  * A method of writing numbers to the serial port was needed, so this was
  * implemented. It is a very simple function that prints (sizeof int) integers.
  * @param usart - the serial peripheral to send data from
- * @param twrite - a pointer to the buffer containing the stream
- * @return true if the transfer was succesful, false otherwise
+ * @param twrite - the integer to write to the stream
+ * @return true if the transfer was successful, false otherwise
  */
 bool HUSART_writeInt(USART_TypeDef* usart, int twrite);
+
+/**
+ * A method of writing float numbers to the serial port. Very, very shaky
+ * implementation.
+ * @param usart - the serial peripheral to send data from
+ * @param twrite - the float number to write to the stream
+ * @return true if the transfer was successful, false otherwise
+ */
+bool HUSART_writeFloat(USART_TypeDef* usart, double twrite);
 
 /**
  * Reports if the USART peripheral has any data in the buffer.
