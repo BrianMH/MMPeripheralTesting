@@ -1,13 +1,141 @@
-/*
- * MPU6500.h
- *
- *  Created on: Dec 23, 2017
- *      Author: Kenmei
- */
+/**
+  ******************************************************************************
+  * @file    HardwareSerial.h
+  * @author  Kenmei
+  * @brief   Implementation of the MPU6500 using a particular SPI port. This
+  * 		 program won't be generalized since no more than one mpu6500 will
+  * 		 generally be used, but it can easily be done. Register defines are
+  * 		 done in the later half of this header file.
+  *
+  * 		 TODO: Clean up header and .c files
+  ******************************************************************************
+*/
 
 #ifndef _MPU6500_H_
 #define _MPU6500_H_
 
+// Defines
+#define _CLOCK_PIN 		GPIO_Pin_13    	// PB13
+#define _DATAIN_PIN 	GPIO_Pin_14		// PB14
+#define _DATAOUT_PIN 	GPIO_Pin_15		// PB15
+#define _CS_PIN 		GPIO_Pin_12		// PB12
+#define BUF_SIZE 		12
+//#define DEBUG_ON
+
+// Conversion Factors
+// (These values can be found in the datasheet)
+#define __ACC_CONV		16384.0
+#define __GYRO_CONV		131.0
+
+// Includes
+#include <stm32f4xx_spi.h>
+#include <stm32f4xx_rcc.h>
+#ifdef MPU_DEBUG_ON
+#include <HardwareSerial.h>
+#endif
+
+// Structures
+typedef struct IMU_vals{
+	union{
+		struct{
+			int r_acc_x;
+			int r_acc_y;
+			int r_acc_z;
+			int r_gyro_x;
+			int r_gyro_y;
+			int r_gyro_z;
+		};
+		struct{
+			double acc_x;
+			double acc_y;
+			double acc_z;
+			double gyro_x;
+			double gyro_y;
+			double gyro_z;
+		};
+	};
+} IMU_Vals;
+IMU_Vals MPU6500;	// define default variable to assign values to
+
+typedef enum {
+	SPI_CONTINUE,
+	SPI_LAST
+} SPITransferMode;
+
+/******************* TIMER METHODS **************************/
+// Initialize only if uninitialized
+#ifndef __TIMER
+#define __TIMER
+
+volatile uint32_t __multiplier;	// #instr/time
+
+/**
+ * Initializes timer for usage
+ */
+void TIM_Delay_Init();
+
+/**
+ * Delays the program by a specified amount of milliseconds
+ * @param msecs - the duration to stall execution for (in ms)
+ */
+void TIM_Delay_Micro(uint32_t msecs);
+
+#endif
+
+/******************* MPU6500 METHODS ************************/
+/**
+ * Writes a value to the specified IMU register
+ * @param address - The register to request write access to
+ * @param data - the information to write to the address
+ */
+void MPU6500_WriteToReg(uint8_t address, uint8_t data);
+
+/**
+ * Reads a value from the specified IMU register
+ * @param address - The register to request read access from
+ * @return A byte that represents what the register was holding*
+ *
+ * *NOTE: For specifications on the above, refer to the MPU6500
+ * 		  register map and data sheet
+ */
+uint8_t MPU6500_ReadFromReg(uint8_t address);
+
+/**
+ * Engages in a request and read operation given user-specified
+ * constraints. This is useful for burst reading operations.
+ * @param data - the information to send to the SPI peripheral
+ * @param t_mode - determines whether the channel select line
+ * 				   should remain LOW or be changed to HIGH after
+ * 				   the given transfer has finished
+ * @return A byte that represents what the register was holding*
+ *
+ * *NOTE: For specifications on the above, refer to the MPU6500
+ * 		  register map and data sheet
+ */
+uint8_t MPU6500_Transfer(uint8_t data, SPITransferMode t_mode);
+
+/**
+ * Attain the raw values and place them in the global IMU values
+ * variable, IMU_vals. (Note that these raw values will be
+ * integers by default!)
+ */
+void MPU6500_GetAccGyroValues();
+
+/**
+ * Attain the correctly scaled values and place them in the global
+ * IMU values variable, IMU_vals. (The scaling should be adjusted
+ * according to the initialization chosen)
+ */
+void MPU6500_UpdateValues();
+
+/**
+ * Initializes the IMU for future usage. This should be called
+ * before any of the above functions (or undefined values will
+ * be returned).
+ */
+void MPU6500_Init();
+
+/******************* REGISTER DEFINES ***********************/
 #define MPU6500_ADDRESS_AD0_LOW     0x68 // address pin low (GND), default for InvenSense evaluation board
 #define MPU6500_ADDRESS_AD0_HIGH    0x69 // address pin high (VCC)
 #define MPU6500_DEFAULT_ADDRESS     MPU6500_ADDRESS_AD0_LOW
@@ -372,4 +500,4 @@
 #define MPU6500_DMP_MEMORY_BANK_SIZE    256
 #define MPU6500_DMP_MEMORY_CHUNK_SIZE   16
 
-#endif /** _MPU6500_H_**/
+#endif

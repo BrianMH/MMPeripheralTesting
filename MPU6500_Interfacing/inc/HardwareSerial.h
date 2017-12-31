@@ -1,9 +1,79 @@
+/**
+  ******************************************************************************
+  * @file    HardwareSerial.h
+  * @author  Kenmei
+  * @brief   A somewhat quick implementation of a serial class for the STMF4
+  * 		 using the SPL. It includes basic features for printing basic
+  * 		 numbers and integers.
+  *
+  * 		 TODO: Implement serial interface for any given serial port
+  * 		 TODO: Clean up header and .c files for serial class
+  ******************************************************************************
+*/
+
 #ifndef __HARD_SERIAL_H
 #define __HARD_SERIAL_H
 
-#include <RingBuffer.h>
-#include <stdint.h>
 #include <stm32f4xx.h>
+
+/************** BEGIN RING BUFFER DECLARATIONS **************/
+/***********************************************************
+ * USER DEFINED CONSTANTS
+ ***********************************************************/
+#define _DEFAULT_RING_SIZE 	512
+#define __PRECISION 		2
+
+// Structure of a RingBuffer
+typedef struct{
+   uint16_t _head;
+   uint16_t _tail;
+   uint8_t _buffer[_DEFAULT_RING_SIZE];
+} RingBuffer;
+
+// define bool type for use
+#ifndef _BOOL
+#define _BOOL
+typedef enum { false=0, true=!false } bool;
+#endif
+
+// Methods for RingBuffers
+/**
+ * Given an empty ring buffer object, initialize the elements inside
+ */
+void RingBuffer_init(RingBuffer* buf);
+
+/**
+ * Checks if the buffer is empty
+ * @param buf - A pointer to the buffer object
+ * @return True if the buffer is empty, false otherwise.
+ */
+bool RingBuffer_isEmpty(RingBuffer* buf);
+
+/**
+ * Checks if the buffer is full
+ * @param buf - A pointer to the buffer object
+ * @return True if the buffer is full, false otherwise.
+ */
+bool RingBuffer_isFull(RingBuffer* buf);
+
+/**
+ * Adds an element to the ring buffer, if possible.
+ * @param buf - A pointer to the buffer object
+ *        toAdd - The element to add to the buffer
+ * @return Nothing
+ */
+bool RingBuffer_queue(RingBuffer* buf, uint8_t toAdd);
+
+/**
+ * Removes an element from the ring buffer.
+ * @param buf - A pointer to the buffer object
+ * @return The current element in the ring buffer pointed by the head
+ */
+uint8_t RingBuffer_dequeue(RingBuffer* buf);
+
+/********************** END RING BUFFER ********************/
+/***********************************************************/
+/****************** BEGIN SERIAL INTERFACE *****************/
 
 // Defines the two ring buffers needed for USART2
 RingBuffer rx2Buf;
@@ -11,12 +81,6 @@ RingBuffer tx2Buf;
 
 // Defines
 typedef enum { __RX = 0, __TX = 1 } RTX_Type;
-#define __PRECISION 2
-
-#ifndef _BOOL
-#define _BOOL
-typedef enum { false=0, true=!false } bool;
-#endif
 
 // Methods for the HardwareSerial class. By default, this class initializes the
 // USART 2 interface. Extending it to others is just a matter of using defines.
@@ -106,4 +170,4 @@ void HUSART_flush(USART_TypeDef* usart);
  */
 void USART2_IRQHandler(void);
 
-#endif
+#endif /*************** END SERIAL INTERFACE **************/
