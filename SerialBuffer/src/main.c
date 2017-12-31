@@ -1,13 +1,12 @@
 /**
   ******************************************************************************
   * @file    main.c
-  * @author  Ac6
-  * @version V1.0
-  * @date    01-December-2013
-  * @brief   Default main function.
+  * @author  Kenmei
+  * @brief   Example usage of the serial functions. (Note: the buffer is quite
+  * 		 easily over-filled. It requires a delay of around 100ms per message
+  * 		 to prevent erratic behavior once filled.
   ******************************************************************************
 */
-
 
 #include <stm32f4xx.h>
 #include <HardwareSerial.h>
