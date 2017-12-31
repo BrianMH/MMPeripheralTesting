@@ -114,7 +114,9 @@ void MPU6500_Init() {
 	// Init timer
 	TIM_Delay_Init();
 #ifdef MPU_DEBUG_ON
-	HUSART_begin(USART2, 9600);
+	// check if USART is already on
+	if((USART2->CR1 & ((uint16_t)USART_CR1_UE)) != ((uint16_t)USART_CR1_UE))
+		HUSART_begin(USART2, _DEFAULT_BAUD);
 #endif
 
 	// Init clocks
@@ -129,9 +131,9 @@ void MPU6500_Init() {
 	GPIO_InitTypeDefStruct.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitTypeDefStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOB, &GPIO_InitTypeDefStruct);
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource13, GPIO_AF_SPI2);
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource14, GPIO_AF_SPI2);
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource15, GPIO_AF_SPI2);
+	GPIO_PinAFConfig(GPIOB, _CLOCK_SOURCE, GPIO_AF_SPI2);
+	GPIO_PinAFConfig(GPIOB, _DATAIN_SOURCE, GPIO_AF_SPI2);
+	GPIO_PinAFConfig(GPIOB, _DATAOUT_SOURCE, GPIO_AF_SPI2);
 
 	// and set up SS pin
 	GPIO_InitTypeDefStruct.GPIO_Pin = _CS_PIN;

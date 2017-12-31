@@ -16,11 +16,15 @@
 
 // Defines
 #define _CLOCK_PIN 		GPIO_Pin_13    	// PB13
+#define _CLOCK_SOURCE   GPIO_PinSource13
 #define _DATAIN_PIN 	GPIO_Pin_14		// PB14
+#define _DATAIN_SOURCE  GPIO_PinSource14
 #define _DATAOUT_PIN 	GPIO_Pin_15		// PB15
+#define _DATAOUT_SOURCE GPIO_PinSource15
 #define _CS_PIN 		GPIO_Pin_12		// PB12
-#define BUF_SIZE 		12
-//#define DEBUG_ON
+#define BUF_SIZE 		12				// burst read byte length
+//#define MPU_DEBUG_ON					// should only be used for debug
+#define _DEFAULT_BAUD	9600			// used for debug
 
 // Conversion Factors
 // (These values can be found in the datasheet)
@@ -30,14 +34,11 @@
 // Includes
 #include <stm32f4xx_spi.h>
 #include <stm32f4xx_rcc.h>
-#ifdef MPU_DEBUG_ON
-#include <HardwareSerial.h>
-#endif
 
 // Structures
-typedef struct IMU_vals{
-	union{
-		struct{
+typedef struct IMU_vals {
+	union {
+		struct {
 			int r_acc_x;
 			int r_acc_y;
 			int r_acc_z;
@@ -45,7 +46,7 @@ typedef struct IMU_vals{
 			int r_gyro_y;
 			int r_gyro_z;
 		};
-		struct{
+		struct {
 			double acc_x;
 			double acc_y;
 			double acc_z;

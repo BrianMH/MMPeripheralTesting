@@ -13,11 +13,11 @@
 // Includes
 #include "stm32f4xx.h"
 #include <HardwareSerial.h>
-#include "MPU6500.h"	// includes the delay methods
+#include "MPU6500.h"
 
 int main(void)
 {
-	HUSART_begin(USART2, 9600);
+	HUSART_begin(USART2, 115200);
 	MPU6500_Init();
 
 	// perma loop
