@@ -182,6 +182,12 @@ bool HUSART_writeFloat(USART_TypeDef* usart, double twrite) {
 	   bool neg = false;
 	   int8_t ind = __PRECISION+1;
 
+	   // check if char is negative
+	   if(twrite < 0) {
+	      neg = true;
+	      twrite *= -1;
+	   }
+
 	   // Find mantissa portion
 	   int nonman = (int)twrite;
 	   int mantissa = (int)((twrite - nonman)*ipow(10, __PRECISION));
@@ -189,13 +195,6 @@ bool HUSART_writeFloat(USART_TypeDef* usart, double twrite) {
 	   // Do int conversion
 	   char buf[11+__PRECISION+1] = {0};
 	   buf[__PRECISION] = '.';
-
-	   // check if char is negative
-	   if(nonman < 0) {
-	      neg = true;
-	      nonman *= -1;
-	      mantissa *= -1;
-	   }
 
 	   // Perform a simple conversion of main number
 	   for(; ind < 10+__PRECISION; ind++) {
@@ -209,12 +208,8 @@ bool HUSART_writeFloat(USART_TypeDef* usart, double twrite) {
 	   for(int ind2 = 0; ind2 < __PRECISION; ind2++) {
 		  buf[ind2] = (char)( 48 + (mantissa % 10));
 		  mantissa /= 10;
-		  if(mantissa == 0) {
-			  if(neg)
-				  buf[++ind] = '-';
-			  break;   // if mantissa is now zero, number conversion is done
-		  }
 	   }
+	   buf[++ind] = '-';	// add negative sign now
 
 	   // now perform the transfer
 	   while(ind >= 0) {
