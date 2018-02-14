@@ -32,7 +32,7 @@
 /****************************** VARIABLES ********************************/
 static __IO int8_t _cursorPos;
 static __IO uint8_t _dotRegister[_MAXSTRINGLENGTH*5+1] = {0};
-static uint8_t _prevBrightness = 15;
+//static uint8_t _prevBrightness = 15;
 
 /****************************** FUNCTIONS ********************************/
 /**
