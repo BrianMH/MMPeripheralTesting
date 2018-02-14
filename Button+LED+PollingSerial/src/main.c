@@ -11,22 +11,13 @@
 #include "stm32f4xx_rcc.h"
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_usart.h"
+#include "Timer.h"
 
 typedef enum { false, true } bool;  // Set up boolean values
 
-/**
- * @brief   Delays the program by a specified amount of time.
- * @param   Time to stall program for in milliseconds
- * @retval  None
- */
-void soft_delay(uint32_t nTime);
-
-/**
- * The main function...
- */
-int main(void)
-{
-   // Enable Peripheral Clocks (Multi Init)
+// Initializes all the peripherals used in this program (because who wants all this in main...)
+void initPeripherals(void) {
+	// Enable Peripheral Clocks (Multi Init)
    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOC, ENABLE);
    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
 
@@ -65,12 +56,17 @@ int main(void)
    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;   // Rx/Tx Mode
    USART_Init(USART2, &USART_InitStructure);
    USART_Cmd(USART2, ENABLE); // Start up USART2
+}
 
-   // Configure SysTick Timer
-   if(SysTick_Config(SystemCoreClock/1000))  // Every 1msec, SysTick interrupt occurs
-      while(1){
-         ;  // Stall if configuration fails
-      }
+/**
+ * The main function...
+ */
+int main(void) {
+	// Initialize peripherals
+	initPeripherals();
+
+   // Init simple timer
+   TIM_Delay_Init();
 
    // Effectively the "loop" part of main
    USART_SendData(USART2, '5');
@@ -87,37 +83,13 @@ int main(void)
          }
 
          if(c == 'O') { // Turn LED on for 2 seconds if you receive an 'O'
-            GPIO_WriteBit(GPIOA, GPIO_Pin_5, SET);
-            soft_delay(2000);
-            GPIO_WriteBit(GPIOA, GPIO_Pin_5, RESET);
+            GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_SET);
+            TIM_Delay_Micro(2000);
+            GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_RESET);
          }
       } else { // If button not pressed send a character
          USART_SendData(USART2, '.');
-         soft_delay(500);
+         TIM_Delay_Micro(2000);
       }
    }
 }
-
-/***************** PRIVATE FUNCTIONS AND VARIABLES **********************/
-static __IO uint32_t TimingDelay;   // Prevent optimization of counter
-
-void soft_delay(uint32_t nTime) {
-   TimingDelay = nTime;
-   while(TimingDelay!=0){
-      ;  // Wait for interrupts to reduce counter
-   }
-}
-
-// ISR for SysTick
-void SysTick_Handler(void) {
-   if(TimingDelay!=0x00)
-      TimingDelay--;
-}
-
-#ifdef USE_FULL_ASSERT
-void assert_failed(uint8_t* file, uint32_t line) {
-   /* Infinite Loop */
-   /* Use GDB to find out why we're here */
-   while(1);
-}
-#endif

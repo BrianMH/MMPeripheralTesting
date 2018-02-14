@@ -14,13 +14,7 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_rcc.h"
 #include "stm32f4xx_gpio.h"
-
-/**
- * @brief   Delays the program by a specified amount of time.
- * @param   Time to stall program for in milliseconds
- * @retval  None
- */
-void soft_delay(uint32_t nTime);
+#include "Timer.h"
 
 /**
  * The main function...
@@ -40,11 +34,8 @@ int main(void)
    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_DOWN; // Pull signal down on float
    GPIO_Init(GPIOA, &GPIO_InitStructure); // Initialize PA5 according to above
 
-   // Configure SysTick Timer
-   if(SysTick_Config(SystemCoreClock/1000))  // Every 1msec, SysTick interrupt occurs
-      while(1){
-         ;  // Stall if configuration fails
-      }
+   // Initialize timer for delays
+   TIM_Delay_Init();
 
    // Effectively the "loop" part of main
    while(1) {
@@ -54,30 +45,6 @@ int main(void)
       GPIO_WriteBit(GPIOA, GPIO_Pin_5, (ledval)?Bit_SET:Bit_RESET);
       ledval = 1-ledval;
 
-      soft_delay(1000); // wait specified amount of msec (1sec)
+      TIM_Delay_Micro(1000); // wait specified amount of msec (1sec)
    }
 }
-
-/***************** PRIVATE FUNCTIONS AND VARIABLES **********************/
-static __IO uint32_t TimingDelay;   // Prevent optimization of counter
-
-void soft_delay(uint32_t nTime) {
-   TimingDelay = nTime;
-   while(TimingDelay!=0){
-      ;  // Wait for interrupts to reduce counter
-   }
-}
-
-// ISR for SysTick
-void SysTick_Handler(void) {
-   if(TimingDelay!=0x00)
-      TimingDelay--;
-}
-
-#ifdef USE_FULL_ASSERT
-void assert_failed(uint8_t* file, uint32_t line) {
-   /* Infinite Loop */
-   /* Use GDB to find out why we're here */
-   while(1);
-}
-#endif

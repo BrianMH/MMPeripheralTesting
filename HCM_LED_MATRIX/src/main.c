@@ -9,6 +9,7 @@
 
 #include "stm32f4xx.h"
 #include "hcm_display.h"
+#include "Timer.h"
 
 int main(void)
 {

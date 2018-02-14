@@ -7,6 +7,7 @@
   * @brief   Testing Attempts for the MPU6500 Module. This will just be testing
   * 		 connectivity and eventually become a library. [Note that this will
   * 		 be coded with the module being connected to the SPI2 pins]
+  * 		 NOTE: THIS LIBRARY REQUIRES THE TIMER LIBRARY TO BE INCLUDED!!!
   ******************************************************************************
 */
 
@@ -38,6 +39,8 @@ int main(void)
 
 		// get new values
 		MPU6500_UpdateValues();
-		TIM_Delay_Micro(100);
+		TIM_Delay_Micro(100);   // timer was already initialized
+		                        // but it's find if it is reinitialized
+		                        // since the user won't know...
 	}
 }
