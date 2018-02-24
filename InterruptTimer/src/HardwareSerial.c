@@ -1,9 +1,10 @@
-#include <RingBuffer.h>
 #include <HardwareSerial.h>
 #include <stm32f4xx.h>
 #include <stm32f4xx_rcc.h>
 #include <stm32f4xx_usart.h>
+#include <misc.h>
 
+/************* SERIAL INTERFACE FUNCTIONS ****************/
 void HUSART_begin(USART_TypeDef* usart, uint32_t baud) {
    USART_InitTypeDef USART_InitStructure;
    GPIO_InitTypeDef GPIO_InitStructureRx;
@@ -56,6 +57,7 @@ void HUSART_begin(USART_TypeDef* usart, uint32_t baud) {
       RingBuffer_init(&rx2Buf);
       RingBuffer_init(&tx2Buf);
    }
+   // TODO: FINISH IMPLEMENTATION FOR DIFFERENT USART
 
    USART_Cmd(usart, ENABLE);
 }
@@ -130,8 +132,10 @@ bool HUSART_writeInt(USART_TypeDef* usart, int twrite) {
    char buf[11] = {0};
 
    // check if char is negative
-   if(twrite < 0)
+   if(twrite < 0) {
       neg = true;
+      twrite *= -1;
+   }
 
    // Perform a simple conversion
    for(; ind < 10; ind++) {
@@ -159,34 +163,70 @@ bool HUSART_writeInt(USART_TypeDef* usart, int twrite) {
    return true;
 }
 
-bool HUSART_writeUInt(USART_TypeDef* usart, uint32_t twrite) {
-	RingBuffer* txbuf = _HUSART_RET_BUF(usart, __TX);
-	int8_t ind = 0;
+int ipow(int base, int exp)
+{
+    int result = 1;
+    while (exp)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        base *= base;
+    }
 
-	// Do int conversion
-	char buf[11] = {0};
-
-	for(; ind < 10; ind++) {
-		buf[ind] = (char)(48 + twrite % 10);
-		twrite /= 10;
-		if(twrite == 0)
-			break; // reached end of number. end string
-	}
-
-	// now perform transfer
-	while(ind > 0) {
-		// buffer is full. transmission failed
-		if(RingBuffer_isFull(txbuf))
-			return false;
-
-		// attempt transmission
-		RingBuffer_queue(txbuf, (uint8_t)buf[ind]);
-		ind--;
-	}
-
-	USART_ITConfig(usart, USART_IT_TXE, ENABLE);
-	return true;
+    return result;
 }
+
+bool HUSART_writeFloat(USART_TypeDef* usart, double twrite) {
+	   RingBuffer* txbuf = _HUSART_RET_BUF(usart, __TX);
+	   bool neg = false;
+	   int8_t ind = __PRECISION+1;
+
+	   // check if char is negative
+	   if(twrite < 0) {
+	      neg = true;
+	      twrite *= -1;
+	   }
+
+	   // Find mantissa portion
+	   int nonman = (int)twrite;
+	   int mantissa = (int)((twrite - nonman)*ipow(10, __PRECISION));
+
+	   // Do int conversion
+	   char buf[11+__PRECISION+1] = {0};
+	   buf[__PRECISION] = '.';
+
+	   // Perform a simple conversion of main number
+	   for(; ind < 10+__PRECISION; ind++) {
+	      buf[ind] = (char)( 48 + (nonman % 10));
+	      nonman /= 10;
+	      if(nonman == 0)
+	         break;   // if nonman is now zero, number conversion is done
+	   }
+
+	   // Now add decimal and convert mantissa to certain position
+	   for(int ind2 = 0; ind2 < __PRECISION; ind2++) {
+		  buf[ind2] = (char)( 48 + (mantissa % 10));
+		  mantissa /= 10;
+	   }
+	   if(neg)
+	     buf[++ind] = '-';	// add negative sign now
+
+	   // now perform the transfer
+	   while(ind >= 0) {
+	      // buffer is full. transmission failed
+	      if(RingBuffer_isFull(txbuf))
+	         return false;
+
+	      // attempt transmission
+	      RingBuffer_queue(txbuf, (uint8_t)buf[ind]);
+	      ind--;
+	   }
+
+	   USART_ITConfig(usart, USART_IT_TXE, ENABLE);
+	   return true;
+}
+
 
 bool HUSART_available(USART_TypeDef* usart) {
    RingBuffer* rxbuf = _HUSART_RET_BUF(usart, __RX);
@@ -214,4 +254,42 @@ void USART2_IRQHandler(void) {
       else
          USART_SendData(USART2, RingBuffer_dequeue(&tx2Buf)); // still have more to send
    }
+}
+
+/************* RING BUFFER FUNCTIONS ****************/
+// More of an insurance that values are not garbage
+void RingBuffer_init(RingBuffer* buf) {
+   buf->_head = 0;
+   buf->_tail = 0;
+   for(unsigned short ind = 0; ind < _DEFAULT_RING_SIZE; ind++) {
+      buf->_buffer[ind] = 0;
+   }
+}
+
+bool RingBuffer_isEmpty(RingBuffer* buf) {
+   return buf->_head==buf->_tail;
+}
+
+bool RingBuffer_isFull(RingBuffer* buf) {
+   return (((buf->_head)+1) % _DEFAULT_RING_SIZE)==buf->_tail;
+}
+
+bool RingBuffer_queue(RingBuffer* buf, uint8_t toAdd) {
+   if(RingBuffer_isFull(buf)) // buffer is full; do nothing
+      return false;
+
+   buf->_buffer[buf->_head] = toAdd;
+   if(++(buf->_head) >= _DEFAULT_RING_SIZE)
+      buf->_head = 0;
+   return true;
+}
+
+uint8_t RingBuffer_dequeue(RingBuffer* buf) {
+   if(RingBuffer_isEmpty(buf)) // buffer is empty; nothing to do
+      return 0;
+
+   uint8_t ret = buf->_buffer[buf->_tail];
+   if(++(buf->_tail) >= _DEFAULT_RING_SIZE)
+      buf->_tail = 0;
+   return ret;
 }

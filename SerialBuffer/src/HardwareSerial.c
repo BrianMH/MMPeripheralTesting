@@ -209,7 +209,8 @@ bool HUSART_writeFloat(USART_TypeDef* usart, double twrite) {
 		  buf[ind2] = (char)( 48 + (mantissa % 10));
 		  mantissa /= 10;
 	   }
-	   buf[++ind] = '-';	// add negative sign now
+	   if(neg)
+	     buf[++ind] = '-';	// add negative sign now
 
 	   // now perform the transfer
 	   while(ind >= 0) {
