@@ -11,6 +11,10 @@
 #ifndef __TIMER
 #define __TIMER
 
+#ifdef __cplusplus
+  extern "C" {
+#endif
+
 volatile uint32_t __multiplier;	// #instr/time
 
 /**
@@ -19,9 +23,19 @@ volatile uint32_t __multiplier;	// #instr/time
 void TIM_Delay_Init();
 
 /**
+ * Delays the program by a specified amount of microseconds
+ * @param msecs - the duration to stall execution for (in us)
+ */
+void TIM_Delay_Micro(uint32_t msecs);
+
+/**
  * Delays the program by a specified amount of milliseconds
  * @param msecs - the duration to stall execution for (in ms)
  */
-void TIM_Delay_Micro(uint32_t msecs);
+void TIM_Delay_Milli(uint32_t msecs);
+
+#ifdef __cplusplus
+  }
+#endif
 
 #endif
