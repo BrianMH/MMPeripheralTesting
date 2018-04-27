@@ -8,6 +8,7 @@
 
 
 #include "stm32f4xx.h"
+#include "stm32f4xx_adc.h"
 #include "EmitterMacros.h"
 #include "ReceiverMacros.h"
 #include "Timer.h"
@@ -42,7 +43,6 @@ void readSensorValues() {
   HUSART_writeInt(USART3, valueRead);
 
   IR_FLEFT_ON;
-  TIM_Delay_Micro(60);
   valueRead = (int)READ_FLEFT_REC;
   valueReadAlt = (int)READ_BLEFT_REC;
   IR_FLEFT_OFF;
@@ -70,4 +70,5 @@ void readSensorValues() {
   HUSART_writeInt(USART3, valueRead);
   HUSART_writeString(USART3, (char*)"\t\tRight: ");
   HUSART_writeInt(USART3, valueReadAlt);
+  HUSART_writeString(USART3, (char*)"\n");
 }

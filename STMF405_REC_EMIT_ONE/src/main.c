@@ -35,7 +35,7 @@ int main(void)
     HUSART_writeString(USART3, "ADC Value: ");
     HUSART_writeInt(USART3, recordedVal);
     HUSART_writeChar(USART3, '\n');
-    TIM_Delay_Micro(100);
+    TIM_Delay_Milli(100);
   }
 }
 

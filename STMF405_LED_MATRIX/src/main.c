@@ -21,9 +21,9 @@ int main(void)
 	TIM_Delay_Init();
 
 	for(;;) {
-		HCM_print(" tst");
+		HCM_print("test");
 		TIM_Delay_Micro(100);
-		HCM_print("tst");
+		HCM_print("test");
 		TIM_Delay_Micro(100);
 	}
 }
