@@ -11,7 +11,8 @@
 #include "stm32f4xx_tim.h"
 
 PWMDriver::PWMDriver(GPIO_TypeDef* pinGroup, uint16_t gpioPin, TIM_TypeDef* pwmTimer,
-                     uint32_t frequency, FreqAdjust* adjuster) : pwmTimer(pwmTimer) {
+                     TIM_Channel pwmChan, uint32_t frequency, FreqAdjust* adjuster) :
+                     pwmTimer(pwmTimer), pwmChannel(pwmChan) {
   // turn on necessary clocks (note that all GPIO initializations are found in AHB1 group
   if(pinGroup == GPIOA)
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
@@ -65,27 +66,30 @@ PWMDriver::PWMDriver(GPIO_TypeDef* pinGroup, uint16_t gpioPin, TIM_TypeDef* pwmT
   } else if(pwmTimer == TIM13) {
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM13, ENABLE);
     GPIO_AF = GPIO_AF_TIM13;
+  } else if(pwmTimer == TIM14) {
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM14, ENABLE);
+    GPIO_AF = GPIO_AF_TIM14;
   }
 
   // find pinSource from original pin
   uint16_t pinSource;
   switch(gpioPin) {
-  case(GPIO_Pin_0):pinSource = GPIO_PinSource0; break;
-  case(GPIO_Pin_1):pinSource = GPIO_PinSource1; break;
-  case(GPIO_Pin_2):pinSource = GPIO_PinSource2; break;
-  case(GPIO_Pin_3):pinSource = GPIO_PinSource3; break;
-  case(GPIO_Pin_4):pinSource = GPIO_PinSource4; break;
-  case(GPIO_Pin_5):pinSource = GPIO_PinSource5; break;
-  case(GPIO_Pin_6):pinSource = GPIO_PinSource6; break;
-  case(GPIO_Pin_7):pinSource = GPIO_PinSource7; break;
-  case(GPIO_Pin_8):pinSource = GPIO_PinSource8; break;
-  case(GPIO_Pin_9):pinSource = GPIO_PinSource9; break;
-  case(GPIO_Pin_10):pinSource = GPIO_PinSource10; break;
-  case(GPIO_Pin_11):pinSource = GPIO_PinSource11; break;
-  case(GPIO_Pin_12):pinSource = GPIO_PinSource12; break;
-  case(GPIO_Pin_13):pinSource = GPIO_PinSource13; break;
-  case(GPIO_Pin_14):pinSource = GPIO_PinSource14; break;
-  case(GPIO_Pin_15):pinSource = GPIO_PinSource15; break;
+    case(GPIO_Pin_0):pinSource = GPIO_PinSource0; break;
+    case(GPIO_Pin_1):pinSource = GPIO_PinSource1; break;
+    case(GPIO_Pin_2):pinSource = GPIO_PinSource2; break;
+    case(GPIO_Pin_3):pinSource = GPIO_PinSource3; break;
+    case(GPIO_Pin_4):pinSource = GPIO_PinSource4; break;
+    case(GPIO_Pin_5):pinSource = GPIO_PinSource5; break;
+    case(GPIO_Pin_6):pinSource = GPIO_PinSource6; break;
+    case(GPIO_Pin_7):pinSource = GPIO_PinSource7; break;
+    case(GPIO_Pin_8):pinSource = GPIO_PinSource8; break;
+    case(GPIO_Pin_9):pinSource = GPIO_PinSource9; break;
+    case(GPIO_Pin_10):pinSource = GPIO_PinSource10; break;
+    case(GPIO_Pin_11):pinSource = GPIO_PinSource11; break;
+    case(GPIO_Pin_12):pinSource = GPIO_PinSource12; break;
+    case(GPIO_Pin_13):pinSource = GPIO_PinSource13; break;
+    case(GPIO_Pin_14):pinSource = GPIO_PinSource14; break;
+    case(GPIO_Pin_15):pinSource = GPIO_PinSource15; break;
   }
 
   // initialize GPIO Pin
@@ -132,12 +136,24 @@ PWMDriver::PWMDriver(GPIO_TypeDef* pinGroup, uint16_t gpioPin, TIM_TypeDef* pwmT
   TIMOCStruct.TIM_OutputState = TIM_OutputState_Enable;
   TIMOCStruct.TIM_OCPolarity = TIM_OCPolarity_High;
   TIMOCStruct.TIM_Pulse = 0;
-  TIM_OC1Init(pwmTimer, &TIMOCStruct);
+  switch(pwmChannel) {
+    case TIM_Channel::_1: TIM_OC1Init(pwmTimer, &TIMOCStruct); break;
+    case TIM_Channel::_2: TIM_OC2Init(pwmTimer, &TIMOCStruct); break;
+    case TIM_Channel::_3: TIM_OC3Init(pwmTimer, &TIMOCStruct); break;
+    case TIM_Channel::_4: TIM_OC4Init(pwmTimer, &TIMOCStruct); break;
+  }
   TIM_BDTRInitTypeDef TIM_BDTRInitStruct;
   TIM_BDTRStructInit(&TIM_BDTRInitStruct);
   TIM_BDTRConfig(pwmTimer, &TIM_BDTRInitStruct);
   TIM_CCPreloadControl(pwmTimer, ENABLE);
-  TIM_OC1PreloadConfig(pwmTimer, TIM_OCPreload_Enable);
+
+  // case needed to account for different channels here!
+  switch(pwmChannel) {
+    case TIM_Channel::_1: TIM_OC1PreloadConfig(pwmTimer, TIM_OCPreload_Enable); break;
+    case TIM_Channel::_2: TIM_OC2PreloadConfig(pwmTimer, TIM_OCPreload_Enable); break;
+    case TIM_Channel::_3: TIM_OC3PreloadConfig(pwmTimer, TIM_OCPreload_Enable); break;
+    case TIM_Channel::_4: TIM_OC4PreloadConfig(pwmTimer, TIM_OCPreload_Enable); break;
+  }
   TIM_CtrlPWMOutputs(pwmTimer, ENABLE);
 }
 
@@ -145,7 +161,12 @@ void PWMDriver::changeDutyCycle(const uint8_t dutyCycle) {
   uint32_t temp = ((pwmTimer->ARR)*(uint32_t)dutyCycle)/100 - 1;
   if(temp >= (pwmTimer->ARR))
     temp = 0;
-  pwmTimer->CCR1 = temp;
+
+  switch(pwmChannel) {
+    case TIM_Channel::_1: pwmTimer->CCR1 = temp; break;
+    case TIM_Channel::_2: pwmTimer->CCR2 = temp; break;
+    case TIM_Channel::_3: pwmTimer->CCR3 = temp; break;
+    case TIM_Channel::_4: pwmTimer->CCR4 = temp; break;  }
 }
 
 void PWMDriver::changeFrequency(const uint32_t freq) {
@@ -160,11 +181,12 @@ void PWMDriver::changeFrequency(const FreqAdjust& adjustment) {
 }
 
 MotorDriver::MotorDriver(GPIO_TypeDef* pinGroupForward, uint16_t gpioPinForward,
-                         TIM_TypeDef* pwmTimerForward,
-                         GPIO_TypeDef* pinGroupBackward, uint32_t gpioPinBackward,
-                         TIM_TypeDef* pwmTimerBackward) :
-                       forward(PWMDriver(pinGroupForward, gpioPinForward, pwmTimerForward, DEFAULT_FREQUENCY)),
-                       backward(PWMDriver(pinGroupBackward, gpioPinBackward, pwmTimerBackward, DEFAULT_FREQUENCY)){
+                        TIM_TypeDef* pwmTimerForward,
+                        GPIO_TypeDef* pinGroupBackward, uint32_t gpioPinBackward,
+                        TIM_TypeDef* pwmTimerBackward,
+                        const TIM_Channel pwmTimerChanForward, const TIM_Channel pwmTimerChanBackward) :
+                       forward(PWMDriver(pinGroupForward, gpioPinForward, pwmTimerForward, pwmTimerChanForward, DEFAULT_FREQUENCY)),
+                       backward(PWMDriver(pinGroupBackward, gpioPinBackward, pwmTimerBackward, pwmTimerChanBackward, DEFAULT_FREQUENCY)){
   // nothing needed in here
 }
 
@@ -181,4 +203,31 @@ void MotorDriver::driveForward(const uint8_t dutyCycle) {
 void MotorDriver::stallMotors(void) {
   backward.changeDutyCycle(0);
   forward.changeDutyCycle(0);
+}
+
+BuzzerDriver::BuzzerDriver(GPIO_TypeDef* pinGroup, uint16_t gpioPin, TIM_TypeDef* pwmTimer, const TIM_Channel pwmChan) :
+                           buzzer(PWMDriver(pinGroup, gpioPin, pwmTimer, pwmChan, INIT_FREQUENCY)) {
+  // nothing needed in here
+}
+
+void BuzzerDriver::playNote(const Note nToPlay, const Key kToPlay) {
+  uint32_t dFrequency = (uint32_t)(static_cast<uint16_t>(nToPlay))/static_cast<uint8_t>(kToPlay);
+  playFrequency(dFrequency);  // watch for frequencies near seventh octave!
+                              // they slowly become distorted as they get higher!
+}
+
+void BuzzerDriver::playFrequency(const uint32_t freq) {
+  buzzer.changeFrequency(freq);
+//  if(!buzzerOn) {
+    buzzer.changeDutyCycle(50);
+//    buzzerOn = true;
+//  }
+}
+
+void BuzzerDriver::stopNote(void) {
+  // note frequency is unimportant as no tone will be played
+//  if(buzzerOn) {
+    buzzer.changeDutyCycle(0);
+//    buzzerOn = false;
+//  }
 }

@@ -8,18 +8,27 @@
   ******************************************************************************
 */
 
-
 #include "stm32f4xx.h"
 #include "stm32f4xx_gpio.h"
 #include "PWMDriver.hpp"
 #include "Timer.h"
 
-int main(void)
-{
-  TIM_Delay_Init();
-  MotorDriver motorLeft(GPIOB, GPIO_Pin_9, TIM10, GPIOB, GPIO_Pin_8, TIM11);
+void testMotorPWM(void);
+void testBuzzerPWM(void);
 
+int main(void) {
+  TIM_Delay_Init();
+
+  // proceed to either test (comment out unnecessary ones)
+//  testMotorPWM();
+  testBuzzerPWM();
+}
+
+void testMotorPWM(void) {
+  // Test procedure for motor
   for(;;) {
+    MotorDriver motorLeft(GPIOB, GPIO_Pin_9, TIM10, GPIOB, GPIO_Pin_8, TIM11);
+
     for(uint8_t i=0; i<50; i++) {
       motorLeft.driveForward(i);
       TIM_Delay_Milli(100);
@@ -44,4 +53,46 @@ int main(void)
     motorLeft.stallMotors();
     TIM_Delay_Milli(3000);
   }
+}
+
+void testBuzzerPWM() {
+  // Test procedure for buzzer
+  using NOTES = BuzzerDriver::Note;
+  const NOTES NOTEARR[] = {NOTES::Cl, NOTES::D, NOTES::E, NOTES::F, NOTES::G,
+                         NOTES::A, NOTES::B, NOTES::Ch};
+
+  using KEYS = BuzzerDriver::Key;
+  const KEYS KEYARR[] = {KEYS::C1, KEYS::C2, KEYS::C3, KEYS::C4, KEYS::C5,
+                       KEYS::C6, KEYS::C7, KEYS::C8};
+
+  // prepare buzzer
+  BuzzerDriver buzz(GPIOA, GPIO_Pin_11, TIM1, TIM_Channel::_4);
+
+  // permanent loop
+//  for(;;) {
+//    for(const auto& cNote : NOTEARR) {
+//      for(const auto& cKey: KEYARR) {
+//        buzz.playNote(cNote, cKey);
+//        TIM_Delay_Milli(2000);
+//      }
+//    }
+
+    for(;;) {
+      buzz.playFrequency(500);
+      TIM_Delay_Milli(1000);
+      buzz.playFrequency(1000);
+      TIM_Delay_Milli(1000);
+      buzz.playFrequency(1500);
+      TIM_Delay_Milli(1000);
+      buzz.playFrequency(2000);
+      TIM_Delay_Milli(1000);
+      buzz.playFrequency(2500);
+      TIM_Delay_Milli(1000);
+      buzz.playFrequency(3000);
+      TIM_Delay_Milli(1000);
+      buzz.playFrequency(3500);
+      TIM_Delay_Milli(1000);
+      buzz.playFrequency(4000);
+      TIM_Delay_Milli(1000);
+    }
 }
